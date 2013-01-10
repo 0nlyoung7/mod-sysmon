@@ -1,0 +1,79 @@
+<html>
+
+<head>
+	<script type="text/javascript" src="/socket.io.js"></script>
+	<script type='text/javascript' src='http://www.google.com/jsapi'></script>
+	<script>
+		var chart = null;
+		var data = null;
+		var nodeArray = new Array();
+		
+		google.load('visualization', '1', {'packages':['annotatedtimeline']});		
+		google.setOnLoadCallback(fncInit);
+		
+		function fncInit(){
+			
+			// Graph Init
+			chart = new google.visualization.AnnotatedTimeLine( document.getElementById('div02') );
+			data = new google.visualization.DataTable();
+			
+			data.addColumn( 'datetime', 'Date' );
+			nodeArray.push( 'Date' );
+			
+			// Socket Init
+		    var socket = io.connect('http://localhost:9090');
+		    
+		    socket.on('addHost', function (data) {
+				fncAddHost(data);
+		    });
+		    
+		    socket.on('draw', function (data) {
+		    	fncDrawChart(data);
+		    });			
+		}
+		
+		function fncDrawChart( json ){
+			var now = new Date();
+			
+			var row = new Array();
+			row.push( now );
+			
+			// inx 0 is date
+			for( var inx = 1 ; inx < nodeArray.length ; inx++ ){
+				
+				if( nodeArray[inx] == json.ipAddress ){
+					row.push( json.heapUsage );
+				} else {
+					row.push( null );
+				}
+			}
+			
+			data.addRow(
+				row
+			);
+			row = null;
+			
+			if( data.getNumberOfRows() > 10 ){
+				var v1 = data.getValue( data.getNumberOfRows() - 11, 0 );
+				chart.setVisibleChartRange( v1, now );
+			}
+			
+			chart.draw( data, { displayAnnotations : false, allowRedraw:true, displayRangeSelector : false, displayZoomButtons : false } );
+		}		
+		
+		function fncAddHost( json ){
+			
+			for( var key in json ){
+				if( nodeArray.indexOf( key ) < 0 ) {
+					data.addColumn( 'number', key );
+					nodeArray.push( key );
+				}
+			}
+		}
+	</script>	
+</head>
+<body>
+	<div id="div02" style="height:400px;">
+	</div>
+</body>
+</html>
